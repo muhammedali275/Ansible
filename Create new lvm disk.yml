@@ -1,0 +1,68 @@
+---
+- hosts: all
+  remote_user: ansible
+  become: yes
+  become_method: sudo
+  become_user: root
+  gather_facts: yes
+  connection: ssh
+
+ #Questions:
+ 
+ #Enter New disk path :                        new_disk        text                           /dev/sdb
+ #Enter new Volume Group (vg) :                create_vgname   text                           liferay_vg
+ #Enter LV name :                              create_lvname   text                           liferay_lv
+ #Enter LV size (M or <number>%FREE) :         create_lvsize   text                           deafult
+ #Choose file system type :                    filesystem      multichoise single              ext4
+ #Please enter mount point path :              new_mntp        text                            /liferay
+    
+  tasks:
+    - name: installing lvm2
+      apt: name=lvm2 state=present
+      when: ansible_os_family == "Debian" or ansible_os_family == "Ubuntu"
+
+    - name: installing lvm2
+      yum: name=system-storage-manager state=present
+      when: ansible_os_family == "RedHat" or ansible_os_family == "centos"
+
+    - name: installing scsitools
+      apt: name=scsitools state=present
+      when: ansible_os_family == "Debian" or ansible_os_family == "Ubuntu"
+
+    - name: installing sg3_utils
+      yum: name=sg3_utils state=present
+      when: ansible_os_family == "RedHat" or ansible_os_family == "centos"
+
+    - name: rescanning for new disks
+      command: /sbin/rescan-scsi-bus
+      when: ansible_os_family == "Debian" or ansible_os_family == "Ubuntu" 
+
+    - name: rescanning for new disks
+      command: /usr/bin/rescan-scsi-bus.sh
+      when: ansible_os_family == "RedHat" or ansible_os_family == "centos" 
+      
+    - name: rescanning for new disks with commands
+      shell: for i in {0..2} ; do echo "- - -" > /sys/class/scsi_host/host${i}/scan ; done
+      when: ansible_os_family == "RedHat" or ansible_os_family == "centos"  
+      
+
+    - name: creating new LVM volume group
+      lvg: vg={{ create_vgname }} pvs={{ new_disk }} state=present
+      
+
+    - name: creating new LVM logical volume
+      lvol: vg={{ create_vgname }} lv={{ create_lvname }} size={{ create_lvsize }}
+      
+
+    - name: creating new filesystem on new LVM logical volume
+      filesystem: fstype={{ filesystem }} dev=/dev/{{ create_vgname }}/{{ create_lvname }}
+     
+
+    - name: mounting new filesystem
+      mount: path={{ new_mntp }} src=/dev/{{ create_vgname }}/{{ create_lvname }} fstype={{ filesystem }} state=mounted
+      
+      
+      
+      
+
+    

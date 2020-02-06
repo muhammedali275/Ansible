@@ -1,0 +1,63 @@
+---
+- hosts: all
+  remote_user: ansible
+  become: yes
+  become_method: sudo
+  become_user: root
+  gather_facts: yes
+  connection: ssh
+
+#Questions first :
+
+#Please provide vg name to extend:                                     extend_vgname    text
+#Please provide LV Name to Extend:                                     extend_lvname    text
+#Please provide Available size to extend ex: (-L+10G ) or (-L+500M):   lvextend_options text
+#Please provide current disk path :                                    current_disk     text      
+#Please provide new extended disk path :                               extend_disk      text
+
+
+
+    
+  tasks:
+    - name: installing lvm2
+      apt: name=lvm2 state=present
+      when: ansible_os_family == "Debian" or ansible_os_family == "Ubuntu"
+
+    - name: installing lvm2
+      yum: name=system-storage-manager state=present
+      when: ansible_os_family == "RedHat" or ansible_os_family == "centos"
+
+    - name: installing scsitools
+      apt: name=scsitools state=present
+      when: ansible_os_family == "Debian" or ansible_os_family == "Ubuntu"
+
+    - name: installing sg3_utils
+      yum: name=sg3_utils state=present
+      when: ansible_os_family == "RedHat" or ansible_os_family == "centos"
+
+    - name: rescanning for new disks
+      command: /sbin/rescan-scsi-bus
+      when: ansible_os_family == "Debian" or ansible_os_family == "Ubuntu" 
+
+    - name: rescanning for new disks
+      command: /usr/bin/rescan-scsi-bus.sh
+      when: ansible_os_family == "RedHat" or ansible_os_family == "centos" 
+      
+    - name: rescanning for new disks with commands
+      shell: for i in {0..2} ; do echo "- - -" > /sys/class/scsi_host/host${i}/scan ; done
+      when: ansible_os_family == "RedHat" or ansible_os_family == "centos" 
+      
+    - name: rescanning for new disks with commands
+      shell: for i in {0..2} ; do echo "- - -" > /sys/class/scsi_host/host${i}/scan ; done
+      when: ansible_os_family == "RedHat" or ansible_os_family == "centos"   
+
+
+    - name: extending existing LVM volume group
+      lvg: vg={{ extend_vgname }} pvs={{ current_disk }},{{ extend_disk }}
+     
+
+    - name: extending existing filesystem
+      command: lvextend -r {{ lvextend_options }} /dev/{{ extend_vgname }}/{{ extend_lvname }}
+     
+
+
